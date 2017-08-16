@@ -174,6 +174,13 @@ class Gradebook
   end
 
   #print student grades
+  def print_grades
+  	all_grades = calc_student_grade(calc_student_total(student_grades), calc_total)
+    all_grades.each do |name, grade|
+      puts "#{name} scored #{grade[0]}, earning a #{grade[1]}."
+    end
+  end
+
 
   #print entire gradebook
   def print_gradebook
@@ -200,4 +207,4 @@ test = Gradebook.new("test")
 # test.enter_score_ui
 # test.calc_total
 # test.print_gradebook
-test.calc_student_grade(test.calc_student_total(test.student_grades), test.calc_total)
+test.print_grades
