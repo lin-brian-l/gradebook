@@ -7,7 +7,6 @@
 
 #require gems
 require 'sqlite3'
-require 'faker' #for testing purposes
 
 #create Gradebook class
 class Gradebook
@@ -18,7 +17,7 @@ class Gradebook
 	@gb.results_as_hash = true
 	@course = course
 
-	#create table variable
+	#create gradebook table variable
     create_table = <<-SQL
     CREATE TABLE IF NOT EXISTS #{@course} (
       id INTEGER PRIMARY KEY,
@@ -26,9 +25,27 @@ class Gradebook
       )
     SQL
 
-    #create gradebook (if not made already)
-	@gb.execute(create_table)
+    #create gradebook_total table variable
+    create_table_total = <<-SQL
+    CREATE TABLE IF NOT EXISTS #{@course}_total (
+      name VARCHAR(255)
+      )
+    SQL
 
+    #create "total" entry
+    create_total_row = <<-SQL
+    INSERT INTO #{@course}_total (name)
+    VALUES ("total")
+    SQL
+
+    #create gradebooks (if not made already)
+	@gb.execute(create_table)
+	@gb.execute(create_table_total)
+
+	#enter "total" entry if doesn't exist
+    empty_check = @gb.execute("SELECT name FROM #{@course}_total")
+    @gb.execute(create_total_row) if empty_check.empty? || !empty_check[0].has_value?("total")
+    
   end
 
   #add students
@@ -46,6 +63,7 @@ class Gradebook
   #add assignments
   def enter_assignment(gb, name)
     gb.execute("ALTER TABLE #{@course} ADD COLUMN #{name} VARCHAR(255)")
+    gb.execute("ALTER TABLE #{@course}_total ADD COLUMN #{name} VARCHAR(255)")
   end	
 
   #prompt for adding assignments
@@ -97,5 +115,5 @@ test = Gradebook.new("test")
 
 # test.enter_name_ui
 # test.enter_assignment_ui
-test.enter_score_ui
-test.print_gradebook
+# test.enter_score_ui
+# test.print_gradebook
