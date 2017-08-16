@@ -15,12 +15,12 @@ require 'sqlite3'
 class Gradebook
 
   def initialize(course)
-	#create SQLite3 database
-	@gb = SQLite3::Database.new("gradebook.db")
-	@gb.results_as_hash = true
-	@course = course
+	  #create SQLite3 database
+	  @gb = SQLite3::Database.new("gradebook.db")
+	  @gb.results_as_hash = true
+	  @course = course
 
-	#create gradebook table variable
+	  #create gradebook table variable
     create_table = <<-SQL
     CREATE TABLE IF NOT EXISTS #{@course} (
       id INTEGER PRIMARY KEY,
@@ -42,18 +42,36 @@ class Gradebook
     SQL
 
     #create gradebooks (if not made already)
-	@gb.execute(create_table)
-	@gb.execute(create_table_total)
+	  @gb.execute(create_table)
+	  @gb.execute(create_table_total)
 
-	#enter "total" entry if doesn't exist
+	  #enter "total" entry if doesn't exist
     empty_check = @gb.execute("SELECT name FROM #{@course}_total")
     @gb.execute(create_total_row) if empty_check.empty? || !empty_check[0].has_value?("total")
 
   end
 
+  #clean export_all method
+  def export
+    export_all = @gb.execute("SELECT * FROM #{@course}")
+    export = []
+    export_all.each do |student|
+      export << student.delete_if { |key, value| (0...student.keys.length).include?(key) }
+    end
+    export
+  end
+
+  #clean export_total method
+  def export_total
+    export_total_raw = @gb.execute("SELECT * FROM #{@course}_total")
+    export_total = export_total_raw[0]
+    export_total.delete_if { |key, value| (0...export_total.keys.length).include?(key) }
+    export_total
+  end 
+
   #add students
   def enter_name(gb, name)
-	gb.execute("INSERT INTO #{@course} (name) VALUES (?)", [name])
+	  gb.execute("INSERT INTO #{@course} (name) VALUES (?)", [name])
   end
 
   #prompt for adding students
@@ -101,11 +119,11 @@ class Gradebook
 
   #calculate total # of points
   def calc_total
-  	total = @gb.execute("SELECT * FROM #{@course}_total")
-  	total_pts_array = total[0].values
+  	total = export_total
+  	total_pts_array = total.values
   	index = 1
   	total_pts = 0
-  	while index < total_pts_array.length/2
+  	while index < total_pts_array.length
       total_pts += total_pts_array[index].to_i
       index += 1
   	end
@@ -208,4 +226,5 @@ test = Gradebook.new("test")
 # test.enter_score_ui
 # test.calc_total
 # test.print_gradebook
-test.print_grades
+# print test.export
+print test.calc_total
