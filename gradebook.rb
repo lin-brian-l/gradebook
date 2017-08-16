@@ -45,12 +45,12 @@ class Gradebook
 	#enter "total" entry if doesn't exist
     empty_check = @gb.execute("SELECT name FROM #{@course}_total")
     @gb.execute(create_total_row) if empty_check.empty? || !empty_check[0].has_value?("total")
-    
+
   end
 
   #add students
   def enter_name(gb, name)
-	@gb.execute("INSERT INTO #{@course} (name) VALUES (?)", [name])
+	gb.execute("INSERT INTO #{@course} (name) VALUES (?)", [name])
   end
 
   #prompt for adding students
@@ -60,24 +60,29 @@ class Gradebook
     enter_name(@gb, student)
   end
 
-  #add assignments
-  def enter_assignment(gb, name)
+  #add assignments and total # of pts
+  def enter_assignment(gb, name, total)
     gb.execute("ALTER TABLE #{@course} ADD COLUMN #{name} VARCHAR(255)")
     gb.execute("ALTER TABLE #{@course}_total ADD COLUMN #{name} VARCHAR(255)")
+    gb.execute("UPDATE #{@course}_total
+      SET #{name} = '#{total}'
+      ")
   end	
 
-  #prompt for adding assignments
+  #prompt for adding assignments and assigning totals
   def enter_assignment_ui
     puts "Enter the name of the assignment."
     assignment = gets.chomp
-    enter_assignment(@gb, assignment)
+    puts "Enter the number of points this assignment is worth."
+    total = gets.chomp
+    enter_assignment(@gb, assignment, total)
   end
 
   #enter score on assignment for individual student
   def enter_score(gb, assignment, score, name)
   	gb.execute("UPDATE #{@course} 
-  		SET #{assignment} = '#{score}' 
-  		WHERE name = '#{name}'")
+  	  SET #{assignment} = '#{score}' 
+  	  WHERE name = '#{name}'")
   end
 
   #prompt for enter score on assignment for individual student
@@ -91,6 +96,25 @@ class Gradebook
     enter_score(@gb, assignment, score, student)
   end
 
+  #calculate total # of points
+  def calc_total
+  	total = @gb.execute("SELECT * FROM #{@course}_total")
+  	total_pts_array = total[0].values
+  	index = 1
+  	total_pts = 0
+  	while index < total_pts_array.length/2
+      total_pts += total_pts_array[index].to_i
+      index += 1
+  	end
+  	total_pts
+  end
+
+  #calculate student totals
+  def calc_student_total
+  	gradebook = @gb.execute("SELECT * FROM #{@course}")
+  	print gradebook
+  end
+
   #print gradebook
   def print_gradebook
     gradebook = @gb.execute("SELECT * FROM #{@course}")
@@ -99,10 +123,10 @@ class Gradebook
       puts "- #{student['name']}:"
       assign_array = student.keys
       score_array = student.values
-      i = 2 
-      while i < (student.keys.length/2)
-        puts "-- #{student.keys[i]} - #{student.values[i]}"
-        i += 1
+      index = 2 
+      while index < (student.keys.length/2)
+        puts "-- #{student.keys[index]} - #{student.values[index]}"
+        index += 1
       end
     end
   end
@@ -116,4 +140,5 @@ test = Gradebook.new("test")
 # test.enter_name_ui
 # test.enter_assignment_ui
 # test.enter_score_ui
+test.calc_total
 # test.print_gradebook
