@@ -109,20 +109,78 @@ class Gradebook
   	total_pts
   end
 
-  #calculate student totals
-  def calc_student_total
+  #create student-assignment hash
+  def student_grades
   	gradebook = @gb.execute("SELECT * FROM #{@course}")
-  	print gradebook
+  	student_grades = {}
+  	gradebook.each do |student|
+  	  student_grades[student.values[1]] = {}
+      index = 2 
+      while index < (student.keys.length/2)
+        student_grades[student.values[1]].merge!(student.keys[index] => student.values[index])
+        # student_grades[student.values[1]][student.keys[index]] = student.values[index]
+        # puts student_grades
+        index += 1
+      end
+  	end
+  	student_grades
   end
 
-  #print gradebook
+  #calculate total student points
+  def calc_student_total(student_grades)
+  	student_total = {}
+    student_grades.each do |name, assignments|
+      total = 0
+      assignments.values.each { |score| total += score.to_i}
+      student_total[name] = total
+    end
+    student_total
+  end
+
+  #calculate grades
+  def calc_student_grade(student_total, total_pts)
+  	student_percent = {}
+  	student_grade = {}
+  	grades = {
+  	  97 => "A+", 
+  	  94 => "A", 
+  	  90 => "A-", 
+  	  87 => "B+", 
+  	  84 => "B", 
+  	  80 => "B-", 
+  	  77 => "C+",
+  	  74 => "C",
+  	  70 => "C-",
+  	  67 => "D+",
+  	  64 => "D", 
+  	  60 => "D-", 
+  	  59 => "F"
+  	}
+
+    student_total.each do |name, total|
+      percent = total.to_f/total_pts.to_f * 100
+      student_percent[name] = percent.round(2)
+    end
+
+    student_percent.each do |name, percent|
+      grades.each do |cutoff, grade|
+      	if percent >= cutoff.to_f
+          student_grade[name] = [percent, grade]
+          break if percent >= cutoff
+      	end
+      end
+    end
+    student_grade
+  end
+
+  #print student grades
+
+  #print entire gradebook
   def print_gradebook
     gradebook = @gb.execute("SELECT * FROM #{@course}")
     puts "Grades for #{@course}:"
     gradebook.each do |student|
       puts "- #{student['name']}:"
-      assign_array = student.keys
-      score_array = student.values
       index = 2 
       while index < (student.keys.length/2)
         puts "-- #{student.keys[index]} - #{student.values[index]}"
@@ -140,5 +198,6 @@ test = Gradebook.new("test")
 # test.enter_name_ui
 # test.enter_assignment_ui
 # test.enter_score_ui
-test.calc_total
+# test.calc_total
 # test.print_gradebook
+test.calc_student_grade(test.calc_student_total(test.student_grades), test.calc_total)
