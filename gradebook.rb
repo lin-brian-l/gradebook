@@ -1,9 +1,12 @@
 # Create a gradebook which allows the following:
-# - Track for multiple courses
-# - Add names to the gradebook
-# - Add assignments (and point values) to the gradebook
-# - Enter/edit point values
-# - Calculate grades
+# - Create & test exporter method to trim extra key/value pairs
+# - Track for multiple courses : WIP
+# - Create UI : WIP
+# - Add names to the gradebook : DONE
+# - Add assignments (and point values) to the gradebook : DONE
+# - Enter/edit point values : DONE
+# - Calculate grades : DONE
+
 
 #require gems
 require 'sqlite3'
@@ -195,8 +198,6 @@ class Gradebook
       end
     end
   end
-
-
 
 end
 
