@@ -69,8 +69,13 @@ class Gradebook
   end 
 
   #add students
-  def enter_name(gb, name)
-	  gb.execute("INSERT INTO #{@course} (name) VALUES (?)", [name])
+  def enter_name(name)
+	  @gb.execute("INSERT INTO #{@course} (name) VALUES (?)", [name])
+  end
+
+  #delete students
+  def delete_name(name)
+    @gb.execute("DELETE FROM #{@course} WHERE name = (?)", [name])
   end
 
   #generate roster
@@ -85,7 +90,16 @@ class Gradebook
     make_roster
     puts "Enter your new student's name."
     student = gets.chomp
-    enter_name(@gb, student)
+    enter_name(student)
+  end
+
+  #prompt for deleting students
+  def delete_name_ui
+    puts "Here is your current roster:"
+    make_roster
+    puts "Enter the name of the student you want to remove. Type 'cancel' if you do not want to remove a student."
+    student = gets.chomp
+    delete_name(student) if student != "cancel"
   end
 
   #add assignments and total # of pts
@@ -108,13 +122,22 @@ class Gradebook
 
   #prompt for adding assignments and assigning totals
   def enter_assignment_ui
-    puts "The following are all of the existing assignments:"
-    print create_assignment_names
-    puts "\nEnter the name of a new assignment."
-    assignment = gets.chomp
-    puts "Enter the number of points this assignment is worth."
-    total = gets.chomp
-    enter_assignment(@gb, assignment, total)
+    enter_assignment_choice = nil
+    until enter_assignment_choice == "n"
+      enter_assignment_choice = nil
+      puts "The following are all of the existing assignments:"
+      print create_assignment_names
+      puts "\nEnter the name of a new assignment."
+      assignment = gets.chomp
+      puts "Enter the number of points this assignment is worth."
+      total = gets.chomp
+      enter_assignment(@gb, assignment, total)
+      until enter_assignment_choice == "n" || enter_assignment_choice == "y"
+        puts "Would you like to edit another assignment? (y/n)"
+        enter_assignment_choice = gets.chomp
+        puts "Please enter 'y' or 'n'." if !["y", "n"].include?(enter_assignment_choice)
+      end  
+    end
   end
 
   #enter score on assignment for individual student
@@ -126,23 +149,34 @@ class Gradebook
 
   #prompt for entering score on assignment for individual student
   def enter_score_ui
-    puts "Here is the current gradebook:"
-    print_gradebook
-    puts "Enter the name of the student whose score you want to edit."
-    student = gets.chomp
-    puts "Enter the name of the assignment you want to edit scores for."
-    assignment = gets.chomp
-    puts "Enter the #{student}'s score on #{assignment}."
-    score = gets.chomp
-    enter_score(@gb, assignment, score, student)
-    puts "Here are #{student}'s updated grades:"
-    print_student_gradebook(student)
+    enter_score_choice = nil
+    until enter_score_choice == "n"
+      enter_score_choice = nil
+      puts "Here is the current gradebook:"
+      print_gradebook
+      puts "Enter the name of the student whose score you want to edit."
+      student = gets.chomp
+      puts "Enter the name of the assignment you want to edit scores for."
+      assignment = gets.chomp
+      puts "Enter the #{student}'s score on #{assignment}."
+      score = gets.chomp
+      enter_score(@gb, assignment, score, student)
+      puts "Here are #{student}'s updated grades:"
+      print_student_gradebook(student)
+      until enter_score_choice == "n" || enter_score_choice == "y"
+        puts "Would you like to edit another score? (y/n)"
+        enter_score_choice = gets.chomp
+        if enter_assignment_choice != "y" || enter_assignment_choice != "n"
+          puts "Please enter 'y' or 'n'."
+        end
+      end  
+    end
   end  
 
   #assignment commands UI
   def assignment_ui
     assignment_choice = nil
-    until (1..2).include?(assignment_choice)
+    until (1..2).include?(assignment_choice) || assignment_choice == "done"
       puts "Would you like to (1) create a new assignment or (2) edit scores for an existing assignment?"
       assignment_choice = gets.chomp.to_i
       case assignment_choice
@@ -305,7 +339,8 @@ end
 test = Gradebook.new("test")
 
 # test.enter_name_ui
-# test.enter_assignment_ui
+# test.delete_name_ui
+test.enter_assignment_ui
 # test.enter_score_ui
 # test.calc_total
 # test.print_gradebook
@@ -316,9 +351,9 @@ test = Gradebook.new("test")
 # print test.student_grades_hash
 # print test.calc_student_total(test.student_grades_hash)
 # print test.calc_student_grade(test.calc_student_total(test.student_grades_hash), test.calc_total)
-
+test.enter_score_ui
 # test.print_ui
 
 # print test.create_assignment_names
 # test.print_student_gradebook("Brian")
-test.assignment_ui
+# test.assignment_ui
