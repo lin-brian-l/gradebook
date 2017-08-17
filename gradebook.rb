@@ -80,26 +80,78 @@ class Gradebook
 
   #generate roster
   def make_roster
-    roster = export_clean
-    roster.each { |student| puts "#{student.values[0]} | #{student.values[1]}" }
+    roster_whole = export_clean
+    roster = []
+    roster_whole.each {|student| roster << [student.values[0], student.values[1]]}
+    roster
+  end
+
+  def print_roster
+    roster = make_roster
+    roster.each {|student| puts "#{student[0]}: #{student[1]}"}
+  end
+
+  #check for existing students
+  def existing_student?(name)
+    roster = make_roster
+    roster.each {|student| return true if student[1] == name}
+    return false
   end
 
   #prompt for adding students
   def enter_name_ui
-    puts "Here is your current roster:"
-    make_roster
-    puts "Enter your new student's name."
-    student = gets.chomp
-    enter_name(student)
+    flag = true
+    until flag == false
+      puts "Enter your new student's name. Type 'cancel' if you do not want to add a student."
+      student = gets.chomp
+      break if student == "cancel"
+      flag = existing_student?(student)
+      puts "Please enter the name of a new student." if flag == true
+    end
+    enter_name(student) if student != "cancel"
   end
 
   #prompt for deleting students
   def delete_name_ui
-    puts "Here is your current roster:"
-    make_roster
-    puts "Enter the name of the student you want to remove. Type 'cancel' if you do not want to remove a student."
-    student = gets.chomp
+    flag = false
+    until flag == true
+      puts "Enter the name of the student you want to remove. Type 'cancel' if you do not want to remove a student."
+      student = gets.chomp
+      break if student == "cancel"
+      flag = existing_student?(student)
+      puts "Please enter the name of an existing student." if flag == false
+    end
     delete_name(student) if student != "cancel"
+  end
+
+  #UI for student commands
+  def student_ui
+    student_repeat = nil
+    until ['n', 99].include?(student_repeat)
+      puts "Here is your current roster:"
+      print_roster
+      student_choice = nil
+      until [1, 2, 99].include?(student_choice)
+        puts "Would you like to (1) add a student or (2) remove a student? Type '99' to exit."
+        student_choice = gets.chomp.to_i
+        case student_choice
+        when 1
+          enter_name_ui
+        when 2
+          delete_name_ui
+        when 99
+          #do nothing
+        else
+          puts "Please enter the numbers 1, 2, or 99."
+        end
+      end
+      student_repeat = student_choice
+      until ["n", "y", 99].include?(student_repeat)
+        puts "Do you need to add or remove more students? (y/n)"
+        student_repeat = gets.chomp
+        puts "Please enter 'y' or 'n'." if !["n", "y"].include?(student_repeat)
+      end
+    end
   end
 
   #add assignments and total # of pts
@@ -126,14 +178,23 @@ class Gradebook
     until enter_assignment_choice == "n"
       enter_assignment_choice = nil
       puts "The following are all of the existing assignments:"
-      print create_assignment_names
-      puts "\nEnter the name of a new assignment."
-      assignment = gets.chomp
-      puts "Enter the number of points this assignment is worth."
+      assignment_array = create_assignment_names
+      print assignment_array.sort!
+      assignment_array << nil
+      assignment = nil
+      puts
+      until !assignment_array.include?(assignment)
+        puts "Enter the name of a new assignment. Type 'xcancelx' to cancel."
+        assignment = gets.chomp
+        puts "Please enter a new assignment." if assignment_array.include?(assignment)
+      end
+      break if assignment == 'xcancelx'
+      puts "Enter the number of points this assignment is worth. Type 'cancel' to cancel."
       total = gets.chomp
+      break if total == 'cancel'
       enter_assignment(@gb, assignment, total)
-      until enter_assignment_choice == "n" || enter_assignment_choice == "y"
-        puts "Would you like to edit another assignment? (y/n)"
+      until ['y', 'n'].include?(enter_assignment_choice)
+        puts "Would you like to enter another assignment? (y/n)"
         enter_assignment_choice = gets.chomp
         puts "Please enter 'y' or 'n'." if !["y", "n"].include?(enter_assignment_choice)
       end  
@@ -154,38 +215,63 @@ class Gradebook
       enter_score_choice = nil
       puts "Here is the current gradebook:"
       print_gradebook
-      puts "Enter the name of the student whose score you want to edit."
-      student = gets.chomp
-      puts "Enter the name of the assignment you want to edit scores for."
-      assignment = gets.chomp
-      puts "Enter the #{student}'s score on #{assignment}."
+      flag = false
+      until flag == true
+        puts "Enter the name of the student whose score you want to edit. Type 'cancel' to cancel."
+        student = gets.chomp
+        break if student == "cancel"
+        flag = existing_student?(student)
+        puts "Please enter the name of an existing student." if flag == false
+      end
+      break if student == "cancel"
+      puts "The following are all of the existing assignments:"
+      assignment_array = create_assignment_names
+      print assignment_array.sort!
+      assignment = nil
+      puts
+      until assignment_array.include?(assignment)
+        puts "Enter the name of the assignment you want to edit scores for. Type 'cancel' to cancel."
+        assignment = gets.chomp
+        break if assignment == 'cancel'
+        puts "Please enter the name of an existing assignment." if !assignment_array.include?(assignment)
+      end
+      break if assignment == 'cancel'
+      puts "Enter the #{student}'s score on #{assignment}. Type 'cancel' to cancel."
       score = gets.chomp
+      break if score == 'cancel'
       enter_score(@gb, assignment, score, student)
       puts "Here are #{student}'s updated grades:"
       print_student_gradebook(student)
-      until enter_score_choice == "n" || enter_score_choice == "y"
+      until ["n", "y"].include?(enter_score_choice)
         puts "Would you like to edit another score? (y/n)"
         enter_score_choice = gets.chomp
-        if enter_assignment_choice != "y" || enter_assignment_choice != "n"
-          puts "Please enter 'y' or 'n'."
-        end
+        puts "Please enter 'y' or 'n'." if !["n", "y"].include?(enter_score_choice)
       end  
     end
   end  
 
   #assignment commands UI
   def assignment_ui
-    assignment_choice = nil
-    until (1..2).include?(assignment_choice) || assignment_choice == "done"
-      puts "Would you like to (1) create a new assignment or (2) edit scores for an existing assignment?"
-      assignment_choice = gets.chomp.to_i
-      case assignment_choice
-      when 1
-        enter_assignment_ui
-      when 2
-        enter_score_ui
-      else
-        puts "Please enter the number 1 or 2."
+    assignment_repeat = nil
+    until assignment_repeat == "n"
+      assignment_repeat = nil
+      assignment_choice = nil
+      until (1..2).include?(assignment_choice)
+        puts "Would you like to (1) create a new assignment or (2) edit scores for an existing assignment?"
+        assignment_choice = gets.chomp.to_i
+        case assignment_choice
+        when 1
+          enter_assignment_ui
+        when 2
+          enter_score_ui
+        else
+          puts "Please enter the number 1 or 2."
+        end
+      end
+      until ["y","n"].include?(assignment_repeat)
+        puts "Do you still need to create new assignments or edit scores for existing assignments? (y/n)"
+        assignment_repeat = gets.chomp
+        puts "Please enter 'y' or 'n'." if !["y","n"].include?(assignment_repeat)
       end
     end
   end
@@ -290,6 +376,7 @@ class Gradebook
       puts "-- Total : #{student_total[0]}/#{total}"
       puts "-- Percent : #{student_total[1]}"
       puts "-- Grade: #{student_total[2]}"
+      puts
     end
   end
 
@@ -308,25 +395,41 @@ class Gradebook
     puts "- Total : #{student_total[0]}/#{total}"
     puts "- Percent : #{student_total[1]}"
     puts "- Grade: #{student_total[2]}"
+    puts
   end
 
   #print commands UI
   def print_ui
-    print_choice = nil
-    until (1..3).include?(print_choice) 
-      puts "Would you like to print (1) the entire gradebook, (2) all final grades, or (3) one student's grades?"
-      print_choice = gets.chomp.to_i
-      case print_choice
-      when 1
-        print_gradebook
-      when 2
-        print_grades
-      when 3
-        puts "Which student's grades would you like to see?"
-        student = gets.chomp
-        print_student_gradebook(student)
-      else
-        puts "Please enter a number from 1 - 3."
+    print_repeat = nil
+    until print_repeat == "y"
+      print_repeat = nil
+      print_choice = nil
+      until (1..3).include?(print_choice) 
+        puts "Would you like to print (1) the entire gradebook, (2) all final grades, or (3) one student's grades?"
+        print_choice = gets.chomp.to_i
+        case print_choice
+        when 1
+          puts
+          print_gradebook
+        when 2
+          puts
+          print_grades
+        when 3
+          puts "Here is your roster:"
+          print_roster
+          puts "Which student's grades would you like to see?"
+          student = gets.chomp
+          puts
+          print_student_gradebook(student)
+        else
+          puts "Please enter a number from 1 - 3."
+        end
+      end
+      until ['y','n'].include?(print_repeat)
+        puts
+        puts "Are you done printing grades? (y/n)"
+        print_repeat = gets.chomp
+        puts "Please enter 'y' or 'n'." if !['y','n'].include?(print_repeat)
       end
     end
   end
@@ -340,8 +443,8 @@ test = Gradebook.new("test")
 
 # test.enter_name_ui
 # test.delete_name_ui
-test.enter_assignment_ui
-# test.enter_score_ui
+# test.enter_assignment_ui
+test.enter_score_ui
 # test.calc_total
 # test.print_gradebook
 # print test.export_total_clean
@@ -351,9 +454,12 @@ test.enter_assignment_ui
 # print test.student_grades_hash
 # print test.calc_student_total(test.student_grades_hash)
 # print test.calc_student_grade(test.calc_student_total(test.student_grades_hash), test.calc_total)
-test.enter_score_ui
+# test.enter_score_ui
 # test.print_ui
-
+# test.student_ui
 # print test.create_assignment_names
 # test.print_student_gradebook("Brian")
 # test.assignment_ui
+# print test.make_roster
+# test.print_roster
+# print test.existing_student?("false")
