@@ -1,5 +1,4 @@
 # Create a gradebook which allows the following:
-# - Track for multiple courses : DONE
 # - Create UI : WIP
 # - Add names to the gradebook : DONE
 # - Add assignments (and point values) to the gradebook : DONE
@@ -15,15 +14,11 @@ require 'sqlite3'
 class Gradebook
   attr_reader :deletes
 
-  def initialize
+  def initialize(course)
 	  #create SQLite3 database
 	  @gb = SQLite3::Database.new("gradebook.db")
 	  @gb.results_as_hash = true
     @deletes = []
-  end
-
-  #create data tables based on inputted course
-  def initialize_course(course)
     @course = course
 
     #create gradebook table variable
@@ -62,7 +57,7 @@ class Gradebook
     #enter "total" entry if doesn't exist
     empty_check = @gb.execute("SELECT name FROM #{@course}_total")
     @gb.execute(create_total_row) if empty_check.empty? || !empty_check[0].has_value?("total")
-  end 
+  end
 
   #clean export_all method
   def export_clean
@@ -110,6 +105,13 @@ class Gradebook
       @deletes.each { |assignment| delete_from_exports_total.delete(assignment) if assign == assignment}
     end
     delete_from_exports_total
+  end
+
+  #restore deleted items
+  def remove_delete_list(assignment)
+    @gb.execute("DELETE FROM #{@course}_delete WHERE name = (?)", [assignment])
+    delete_list
+    print @deletes
   end
 
   #edit clean export method
@@ -277,7 +279,7 @@ class Gradebook
       until ['y', 'n'].include?(enter_assignment_choice)
         puts "Would you like to enter another assignment? (y/n)"
         enter_assignment_choice = gets.chomp
-        puts "Please enter 'y' or 'n'." if !["y", "n"].include?(enter_assignment_choice)
+        puts "Please enter 'y' or 'n'." if !["y", "n"].include?(enter_assignment_choice) 
       end  
     end
   end
@@ -516,13 +518,12 @@ class Gradebook
       end
     end
   end
-
 end
 
 # puts "What gradebook would you like to open?"
 # course = gets.chomp
 
-test = Gradebook.new
+test = Gradebook.new("test")
 
 # test.enter_name_ui
 # test.delete_name_ui
@@ -547,5 +548,8 @@ test = Gradebook.new
 # test.print_roster
 # print test.existing_student?("false")
 # test.edit_exports_total
-test.initialize_course("blah")
+# test.initialize_course("blah")
+# test.print_ui
+test.delete_list
+test.remove_delete_list("idk")
 test.print_ui
