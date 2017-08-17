@@ -6,7 +6,6 @@
 # - Calculate grades : DONE
 # - Create & test exporter method to trim extra key/value pairs : DONE
 
-
 #require gems
 require 'sqlite3'
 
@@ -111,7 +110,6 @@ class Gradebook
   def remove_delete_list(assignment)
     @gb.execute("DELETE FROM #{@course}_delete WHERE name = (?)", [assignment])
     delete_list
-    print @deletes
   end
 
   #edit clean export method
@@ -243,15 +241,42 @@ class Gradebook
       until assignment_array.include?(assignment)
         puts "Enter the name of an assignment to delete. Type 'xcancelx' to cancel."
         assignment = gets.chomp
-        puts "Please enter a new assignment." if !assignment_array.include?(assignment)
+        break if assignment == "xcancelx"
+        puts "Please enter an existing assignment." if !assignment_array.include?(assignment)
       end
       break if assignment == 'xcancelx'
       delete_item(assignment)
       until ['y', 'n'].include?(delete_assignment_choice)
-        puts "Would you like to enter another assignment? (y/n)"
+        puts "Would you like to delete another assignment? (y/n)"
         delete_assignment_choice = gets.chomp
         puts "Please enter 'y' or 'n'." if !["y", "n"].include?(delete_assignment_choice)
       end  
+    end
+  end
+
+  #prompt for restoring deleted assignments
+  def restore_assignment_ui
+    restore_assignment_choice = nil
+    until restore_assignment_choice == "n"
+      restore_assignment_choice = nil
+      puts "The following are all of the deleted assignments:"
+      deleted = delete_list
+      print deleted
+      puts
+      assignment = 0
+      until deleted.include?(assignment)
+        puts "Enter the name of an assignment to restore. Type 'xcancelx' to cancel."
+        assignment = gets.chomp
+        break if assignment == "xcancelx"
+        puts "Please enter a deleted assignment." if !deleted.include?(assignment)
+      end
+      break if assignment == 'xcancelx'
+      remove_delete_list(assignment)
+      until ['y', 'n'].include?(restore_assignment_choice)
+        puts "Would you like to restore another assignment? (y/n)"
+        restore_assignment_choice = gets.chomp
+        puts "Please enter 'y' or 'n'." if !["y", "n"].include?(restore_assignment_choice)
+      end
     end
   end
 
@@ -489,27 +514,30 @@ class Gradebook
     until print_repeat == "y"
       print_repeat = nil
       print_choice = nil
-      until (1..3).include?(print_choice) 
-        puts "Would you like to print (1) the entire gradebook, (2) all final grades, or (3) one student's grades?"
-        print_choice = gets.chomp.to_i
+      until ["1", "2", "3", "cancel"].include?(print_choice) 
+        puts "Would you like to print (1) the entire gradebook, (2) all final grades, or (3) one student's grades? Type 'cancel' to cancel."
+        print_choice = gets.chomp
         case print_choice
-        when 1
+        when "1"
           puts
           print_gradebook
-        when 2
+        when "2"
           puts
           print_grades
-        when 3
+        when "3"
           puts "Here is your roster:"
           print_roster
           puts "Which student's grades would you like to see?"
           student = gets.chomp
           puts
           print_student_gradebook(student)
+        when "cancel"
+          break
         else
-          puts "Please enter a number from 1 - 3."
+          puts "Please enter 'cancel' or a number from 1 - 3."
         end
       end
+      break if print_choice == "cancel"
       until ['y','n'].include?(print_repeat)
         puts
         puts "Are you done printing grades? (y/n)"
@@ -518,38 +546,45 @@ class Gradebook
       end
     end
   end
+
+  #UI for entire gradebook
+  def user_ui
+    user_repeat = nil
+    until user_repeat == "y"
+      user_repeat = nil
+      user_choice = nil
+      until ["1", "2", "3", "cancel"].include?(user_choice)
+        puts "Welcome to your gradebook for your #{@course} class!"
+        puts "Would you like to (1) view/edit your roster, (2) view/edit assignments, or (3) view grades? Type 'cancel' to cancel."
+        user_choice = gets.chomp
+        case user_choice
+        when "1"
+          student_ui
+        when "2"
+          assignment_ui
+        when "3"
+          print_ui
+        when "cancel"
+          break
+        else
+          puts "Please enter 'cancel' or a number from 1 - 3."
+        end
+      end
+      break if user_choice == "cancel"
+      until ['y','n'].include?(user_repeat)
+        puts "Are you done using the gradebook? (y/n)"
+        user_repeat = gets.chomp
+        puts "Please enter 'y' or 'n'." if !['y','n'].include?(user_repeat)
+      end
+    end
+  end
+
 end
 
-# puts "What gradebook would you like to open?"
+# This is to create a new course. "test" is the default course with populated names and assignments.
+# puts "What course do you teach?"
 # course = gets.chomp
+# new_course = Gradebook.new(course)
 
 test = Gradebook.new("test")
-
-# test.enter_name_ui
-# test.delete_name_ui
-# test.enter_assignment_ui
-# test.enter_score_ui
-# test.calc_total
-# test.print_gradebook
-# print test.export_total_clean
-# print test.print_grades
-# test.print_grades
-# test.enter_name_ui
-# print test.student_grades_hash
-# print test.calc_student_total(test.student_grades_hash)
-# print test.calc_student_grade(test.calc_student_total(test.student_grades_hash), test.calc_total)
-# test.enter_score_ui
-# test.delete_assignment_ui
-# test.student_ui
-# print test.create_assignment_names
-# test.print_student_gradebook("Brian")
-# test.assignment_ui
-# print test.make_roster
-# test.print_roster
-# print test.existing_student?("false")
-# test.edit_exports_total
-# test.initialize_course("blah")
-# test.print_ui
-test.delete_list
-test.remove_delete_list("idk")
-test.print_ui
+test.user_ui
