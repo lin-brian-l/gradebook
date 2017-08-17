@@ -19,6 +19,7 @@ class Gradebook
 	  @gb = SQLite3::Database.new("gradebook.db")
 	  @gb.results_as_hash = true
 	  @course = course
+    @deletes = []
 
 	  #create gradebook table variable
     create_table = <<-SQL
@@ -66,7 +67,47 @@ class Gradebook
     export_total = export_total_raw[0]
     export_total.delete_if { |key, value| (0...export_total.keys.length).include?(key) }
     export_total
-  end 
+  end
+
+  def delete_list(name)
+    @deletes << name
+  end
+
+  #delete assignment from export method
+  def delete_export
+    delete_from_exports = edit_exports
+    delete_from_exports.each do |student|
+      @deletes.each { |assignment| student.delete(assignment) if student.keys.include?(assignment) }
+    end
+  end
+
+  def delete_export_total
+    delete_from_exports = edit_exports
+    print delete_from_exports
+    puts
+    delete_from_exports.each do |student|
+      @deletes.each { |assignment| student.delete(assignment) if student.keys.include?(assignment) }
+    end
+    print delete_from_exports
+    puts
+    delete_from_exports_total = edit_exports_total
+    print delete_from_exports_total
+    puts
+    delete_from_exports_total.each_key do |assign|
+      deletes.each { |assignment| delete_from_exports_total.delete(assignment) if assign == assignment}
+    end
+    print delete_from_exports_total
+  end
+
+  #edit clean export method
+  def edit_exports
+    export_edits = export_clean
+  end
+
+  #edit clean export_total method
+  def edit_exports_total
+    exports_total_edits = export_total_clean
+  end
 
   #add students
   def enter_name(name)
@@ -444,7 +485,7 @@ test = Gradebook.new("test")
 # test.enter_name_ui
 # test.delete_name_ui
 # test.enter_assignment_ui
-test.enter_score_ui
+# test.enter_score_ui
 # test.calc_total
 # test.print_gradebook
 # print test.export_total_clean
@@ -463,3 +504,7 @@ test.enter_score_ui
 # print test.make_roster
 # test.print_roster
 # print test.existing_student?("false")
+print test.delete_list("fdsa")
+print test.delete_list("fdsa1")
+puts
+test.delete_export
