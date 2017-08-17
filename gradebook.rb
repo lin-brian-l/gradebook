@@ -13,15 +13,20 @@ require 'sqlite3'
 
 #create Gradebook class
 class Gradebook
+  attr_reader :deletes
 
-  def initialize(course)
+  def initialize
 	  #create SQLite3 database
 	  @gb = SQLite3::Database.new("gradebook.db")
 	  @gb.results_as_hash = true
-	  @course = course
     @deletes = []
+  end
 
-	  #create gradebook table variable
+  #create data tables based on inputted course
+  def initialize_course(course)
+    @course = course
+
+    #create gradebook table variable
     create_table = <<-SQL
     CREATE TABLE IF NOT EXISTS #{@course} (
       id INTEGER PRIMARY KEY,
@@ -36,6 +41,13 @@ class Gradebook
       )
     SQL
 
+    #create gradebook_delete table variable
+    create_table_delete = <<-SQL
+    CREATE TABLE IF NOT EXISTS #{@course}_delete (
+      name VARCHAR(255)
+      )
+    SQL
+
     #create "total" entry
     create_total_row = <<-SQL
     INSERT INTO #{@course}_total (name)
@@ -43,13 +55,14 @@ class Gradebook
     SQL
 
     #create gradebooks (if not made already)
-	  @gb.execute(create_table)
-	  @gb.execute(create_table_total)
+    @gb.execute(create_table)
+    @gb.execute(create_table_total)
+    @gb.execute(create_table_delete)
 
-	  #enter "total" entry if doesn't exist
+    #enter "total" entry if doesn't exist
     empty_check = @gb.execute("SELECT name FROM #{@course}_total")
     @gb.execute(create_total_row) if empty_check.empty? || !empty_check[0].has_value?("total")
-  end
+  end 
 
   #clean export_all method
   def export_clean
@@ -69,44 +82,46 @@ class Gradebook
     export_total
   end
 
-  def delete_list(name)
-    @deletes << name
+  #add to deleted items table
+  def delete_item(name)
+    @gb.execute("INSERT INTO #{@course}_delete (name) VALUES (?)", [name])
+  end
+
+  #list of deleted items
+  def delete_list
+    delete_list_export = @gb.execute("SELECT * FROM #{@course}_delete")
+    delete_list = []
+    delete_list_export.each {|assignment| delete_list << assignment[0]}
+    @deletes = delete_list.uniq!
   end
 
   #delete assignment from export method
   def delete_export
-    delete_from_exports = edit_exports
+    delete_from_exports = export_clean
     delete_from_exports.each do |student|
       @deletes.each { |assignment| student.delete(assignment) if student.keys.include?(assignment) }
     end
+    delete_from_exports
   end
 
   def delete_export_total
-    delete_from_exports = edit_exports
-    print delete_from_exports
-    puts
-    delete_from_exports.each do |student|
-      @deletes.each { |assignment| student.delete(assignment) if student.keys.include?(assignment) }
-    end
-    print delete_from_exports
-    puts
-    delete_from_exports_total = edit_exports_total
-    print delete_from_exports_total
-    puts
+    delete_from_exports_total = export_total_clean
     delete_from_exports_total.each_key do |assign|
-      deletes.each { |assignment| delete_from_exports_total.delete(assignment) if assign == assignment}
+      @deletes.each { |assignment| delete_from_exports_total.delete(assignment) if assign == assignment}
     end
-    print delete_from_exports_total
+    delete_from_exports_total
   end
 
   #edit clean export method
   def edit_exports
-    export_edits = export_clean
+    delete_list
+    export_edits = delete_export
   end
 
   #edit clean export_total method
   def edit_exports_total
-    exports_total_edits = export_total_clean
+    delete_list
+    export_total_edits = delete_export_total
   end
 
   #add students
@@ -121,7 +136,7 @@ class Gradebook
 
   #generate roster
   def make_roster
-    roster_whole = export_clean
+    roster_whole = edit_exports
     roster = []
     roster_whole.each {|student| roster << [student.values[0], student.values[1]]}
     roster
@@ -207,10 +222,35 @@ class Gradebook
 
   #create array of assignment names
   def create_assignment_names
-    names_hash = export_total_clean
+    names_hash = edit_exports_total
     assignment_names = names_hash.keys
     assignment_names.delete_at(0)
     assignment_names
+  end
+
+  #prompt for deleting assignments
+  def delete_assignment_ui
+    delete_assignment_choice = nil
+    until delete_assignment_choice == "n"
+      delete_assignment_choice = nil
+      puts "The following are all of the existing assignments:"
+      assignment_array = create_assignment_names
+      print assignment_array.sort!
+      assignment = nil
+      puts
+      until assignment_array.include?(assignment)
+        puts "Enter the name of an assignment to delete. Type 'xcancelx' to cancel."
+        assignment = gets.chomp
+        puts "Please enter a new assignment." if !assignment_array.include?(assignment)
+      end
+      break if assignment == 'xcancelx'
+      delete_item(assignment)
+      until ['y', 'n'].include?(delete_assignment_choice)
+        puts "Would you like to enter another assignment? (y/n)"
+        delete_assignment_choice = gets.chomp
+        puts "Please enter 'y' or 'n'." if !["y", "n"].include?(delete_assignment_choice)
+      end  
+    end
   end
 
   #prompt for adding assignments and assigning totals
@@ -297,20 +337,22 @@ class Gradebook
     until assignment_repeat == "n"
       assignment_repeat = nil
       assignment_choice = nil
-      until (1..2).include?(assignment_choice)
-        puts "Would you like to (1) create a new assignment or (2) edit scores for an existing assignment?"
+      until (1..3).include?(assignment_choice)
+        puts "Would you like to (1) create a new assignment, (2) edit scores for an existing assignment, or (3) delete an assignment?"
         assignment_choice = gets.chomp.to_i
         case assignment_choice
         when 1
           enter_assignment_ui
         when 2
           enter_score_ui
+        when 3
+          delete_assignment_ui
         else
           puts "Please enter the number 1 or 2."
         end
       end
       until ["y","n"].include?(assignment_repeat)
-        puts "Do you still need to create new assignments or edit scores for existing assignments? (y/n)"
+        puts "Do you still need to create assignments, edit scores, or delete assignments? (y/n)"
         assignment_repeat = gets.chomp
         puts "Please enter 'y' or 'n'." if !["y","n"].include?(assignment_repeat)
       end
@@ -319,7 +361,7 @@ class Gradebook
 
   #calculate total # of points
   def calc_total
-  	total = export_total_clean
+  	total = edit_exports_total
   	total_pts_array = total.values
   	index = 1
   	total_pts = 0
@@ -332,7 +374,7 @@ class Gradebook
 
   #create student-assignment hash
   def student_grades_hash
-    gradebook = export_clean
+    gradebook = edit_exports
     student_grades = {}
     gradebook.each do |student|
       student_grades[student.values[1]] = {}
@@ -402,8 +444,8 @@ class Gradebook
 
   #print entire gradebook
   def print_gradebook
-    total_hash = export_total_clean
-    gradebook = export_clean
+    total_hash = edit_exports_total
+    gradebook = edit_exports
     puts "Grades for #{@course}:"
     gradebook.each do |student|
       puts "- #{student['name']}:"
@@ -423,7 +465,7 @@ class Gradebook
 
   #print one student's grades
   def print_student_gradebook(student)
-    total_hash = export_total_clean
+    total_hash = edit_exports_total
     gradebook = student_grades_hash
     index = 1
     puts "Grades for #{student} in #{@course}:"
@@ -480,7 +522,7 @@ end
 # puts "What gradebook would you like to open?"
 # course = gets.chomp
 
-test = Gradebook.new("test")
+test = Gradebook.new
 
 # test.enter_name_ui
 # test.delete_name_ui
@@ -496,7 +538,7 @@ test = Gradebook.new("test")
 # print test.calc_student_total(test.student_grades_hash)
 # print test.calc_student_grade(test.calc_student_total(test.student_grades_hash), test.calc_total)
 # test.enter_score_ui
-# test.print_ui
+# test.delete_assignment_ui
 # test.student_ui
 # print test.create_assignment_names
 # test.print_student_gradebook("Brian")
@@ -504,7 +546,6 @@ test = Gradebook.new("test")
 # print test.make_roster
 # test.print_roster
 # print test.existing_student?("false")
-print test.delete_list("fdsa")
-print test.delete_list("fdsa1")
-puts
-test.delete_export
+# test.edit_exports_total
+test.initialize_course("blah")
+test.print_ui
